@@ -49,7 +49,8 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
     // Pose detection with accurate models
-    implementation 'com.google.mlkit:pose-detection-accurate:17.0.1-beta5'
+    // implementation 'com.google.mlkit:pose-detection-accurate:17.0.1-beta5'
+    implementation 'com.google.mlkit:pose-detection-accurate:18.0.0-beta2'
 
     // Selfie segmentation
     implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta2'
