@@ -11,6 +11,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  camera: ^0.9.4+5
+  image: ^3.1.0
+  tflite_flutter: ^0.9.0
+  tflite_flutter_helper: ^0.3.1
+  path_provider: ^2.0.8
 
 dev_dependencies:
   flutter_test:
@@ -33,7 +38,9 @@ flutter:
         pluginClass: BodyDetectionPlugin
       ios:
         pluginClass: BodyDetectionPlugin
-
+  assets:
+  - assets/model.tflite
+  - assets/model2.tflite
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

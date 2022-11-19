@@ -10,25 +10,28 @@ import 'models/body_mask.dart';
 import 'png_image.dart';
 import 'types.dart';
 
-class BodyDetection {
-  static const MethodChannel _channel =
-      MethodChannel('com.0x48lab/body_detection');
-  static const EventChannel _eventChannel =
-      EventChannel('com.0x48lab/body_detection/image_stream');
+import 'package:camera/camera.dart';
+import 'package:image/image.dart' as image_lib;
+import 'package:tflite_flutter/tflite_flutter.dart';
+import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
 
+class BodyDetection {
   static StreamSubscription<dynamic>? _imageStreamSubscription;
 
   // Image
+  late Interpreter _interpreter;
+  
+  Classifier({Interpreter? interpreter}) {
+    loadModel(interpreter: interpreter);
+  }
 
   static Future<Pose?> detectPose({required PngImage image}) async {
-    final Uint8List pngImageBytes = image.bytes.buffer.asUint8List();
+    final Uint32List pngImageBytes = image.bytes.buffer.asUint32List();
     try {
-      final result = await _channel.invokeMapMethod(
-        'detectImagePose',
-        <String, dynamic>{
-          'pngImageBytes': pngImageBytes,
-        },
-      );
+      late TensorImage inputImage;
+      inputImage = TensorImage(TfLiteType.float32);
+      
+      final result = 0;
       return result == null ? null : Pose.fromMap(result);
     } on PlatformException catch (e) {
       throw BodyDetectionException(e.code, e.message);
@@ -130,4 +133,37 @@ class BodyDetection {
       throw BodyDetectionException(e.code, e.message);
     }
   }
-}
+
+  static image_lib.Image convertCameraImage(PngImage pngImage) {
+    final int width = pngImage.width;
+    final int height = pngImage.height;
+  }
+
+  loadModel({Interpreter? interpreter}) async {
+    try {
+      _interpreter = interpreter ??
+          await Interpreter.fromAsset(
+            "model.tflite",
+            options: InterpreterOptions()..threads = 4,
+          );
+    } catch (e) {
+      print("Error while creating interpreter: $e");
+    }
+
+    // var outputTensors = interpreter.getOutputTensors();
+    // var inputTensors = interpreter.getInputTensors();
+    // List<List<int>> _outputShapes = [];
+
+    // outputTensors.forEach((tensor) {
+    //   print("Output Tensor: " + tensor.toString());
+    //   _outputShapes.add(tensor.shape);
+    // });
+    // inputTensors.forEach((tensor) {
+    //   print("Input Tensor: " + tensor.toString());
+    // });
+
+    // print("------------------[A}========================\n" +
+    //     _outputShapes.toString());
+
+    outputLocations = TensorBufferFloat([1, 1, 17, 3]);
+  }
