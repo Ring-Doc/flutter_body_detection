@@ -23,25 +23,6 @@ class Classifier {
     loadModel(interpreter: interpreter);
   }
 
-  printDebugData() {
-    print('Frame: ' +
-        frameNo.toString() +
-        " time: " +
-        s.elapsedMilliseconds.toString() +
-        " type: " +
-        inputImage.dataType.toString() +
-        " height: " +
-        inputImage.height.toString() +
-        " width: " +
-        inputImage.width.toString());
-    printWrapped(parseLandmarkData().toString());
-  }
-
-  void printWrapped(String text) {
-    final pattern = new RegExp('.{1,800}'); // 800 is the size of each chunk
-    pattern.allMatches(text).forEach((match) => print(match.group(0)));
-  }
-
   void performOperations(CameraImage cameraImage) {
     s.start();
 

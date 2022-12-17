@@ -12,7 +12,6 @@ import 'png_image.dart';
 import 'types.dart';
 
 import 'classifier.dart';
-import 'isolate.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 
 class BodyDetection {
@@ -23,7 +22,6 @@ class BodyDetection {
 
   static StreamSubscription<dynamic>? _imageStreamSubscription;
   static late Classifier classifier;
-  static late IsolateUtils isolate;
 
   bool predicting = false;
   bool initialized = false;
@@ -107,8 +105,6 @@ class BodyDetection {
   static Future<void> enablePoseDetection() async {
     try {
       await _channel.invokeMethod<void>('enablePoseDetection');
-      isolate = IsolateUtils();
-      await isolate.start();
       classifier = Classifier();
       classifier.loadModel();
     } on PlatformException catch (e) {
