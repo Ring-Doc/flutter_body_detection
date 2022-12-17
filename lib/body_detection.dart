@@ -1,60 +1,68 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
+import 'package:camera/camera.dart';
 
 import 'body_detection_exception.dart';
 import 'models/image_result.dart';
 import 'models/pose.dart';
-import 'models/body_mask.dart';
 import 'png_image.dart';
 import 'types.dart';
 
-import 'package:camera/camera.dart';
-import 'package:image/image.dart' as image_lib;
-import 'package:tflite_flutter/tflite_flutter.dart';
-import 'package:tflite_flutter_helper/tflite_flutter_helper.dart';
+import 'classifier.dart';
+import 'isolate.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 
 class BodyDetection {
+  static const MethodChannel _channel =
+      MethodChannel('com.0x48lab/body_detection');
+  static const EventChannel _eventChannel =
+      EventChannel('com.0x48lab/body_detection/image_stream');
+
   static StreamSubscription<dynamic>? _imageStreamSubscription;
+  static late Classifier classifier;
+  static late IsolateUtils isolate;
+
+  bool predicting = false;
+  bool initialized = false;
+
+  late List<dynamic> inferences;
 
   // Image
-  late Interpreter _interpreter;
-  
-  Classifier({Interpreter? interpreter}) {
-    loadModel(interpreter: interpreter);
-  }
-
-  static Future<Pose?> detectPose({required PngImage image}) async {
-    final Uint32List pngImageBytes = image.bytes.buffer.asUint32List();
-    try {
-      late TensorImage inputImage;
-      inputImage = TensorImage(TfLiteType.float32);
-      
-      final result = 0;
-      return result == null ? null : Pose.fromMap(result);
-    } on PlatformException catch (e) {
-      throw BodyDetectionException(e.code, e.message);
-    }
-  }
-
-  static Future<BodyMask?> detectBodyMask({required PngImage image}) async {
+  static Future<List<dynamic>> detectPose({required PngImage image}) async {
     final Uint8List pngImageBytes = image.bytes.buffer.asUint8List();
     try {
-      final result = await _channel.invokeMapMethod(
-        'detectImageSegmentationMask',
-        <String, dynamic>{
-          'pngImageBytes': pngImageBytes,
-        },
+      // Classifier (TFLite)
+      // Uint8List --> CameraImage (TODO)
+      const CameraImageFormat cameraImageFormat = CameraImageFormat(ImageFormatGroup.yuv420, raw: ImageFormatGroup.yuv420);
+      List<CameraImagePlane> cameraImagePlane = [
+        CameraImagePlane(
+          bytes: pngImageBytes,
+          bytesPerRow: 8,
+        )
+      ];
+      CameraImageData cameraImageData = CameraImageData(
+        format: cameraImageFormat, 
+        planes: cameraImagePlane,
+        width: image.width,
+        height: image.height
       );
-      return result == null ? null : BodyMask.fromMap(result);
+      final CameraImage cameraImage = CameraImage.fromPlatformInterface(cameraImageData);
+
+      // Run model
+      classifier.performOperations(cameraImage);
+      classifier.runModel();
+
+      List<dynamic> results = classifier.parseLandmarkData();
+      return results;
     } on PlatformException catch (e) {
       throw BodyDetectionException(e.code, e.message);
     }
   }
 
   // Camera
-
   static Future<void> startCameraStream({
     ImageCallback? onFrameAvailable,
     PoseCallback? onPoseAvailable,
@@ -78,12 +86,6 @@ class BodyDetection {
               result['pose'] == null ? null : Pose.fromMap(result['pose']),
             );
           }
-          // Selfie segmentation result
-          else if (type == 'mask' && onMaskAvailable != null) {
-            onMaskAvailable(
-              result['mask'] == null ? null : BodyMask.fromMap(result['mask']),
-            );
-          }
         },
       );
     } on PlatformException catch (e) {
@@ -91,7 +93,7 @@ class BodyDetection {
     }
   }
 
-  static Future<void> stopCameraStream() async {
+  Future<void> stopCameraStream() async {
     try {
       await _imageStreamSubscription?.cancel();
       _imageStreamSubscription = null;
@@ -105,65 +107,21 @@ class BodyDetection {
   static Future<void> enablePoseDetection() async {
     try {
       await _channel.invokeMethod<void>('enablePoseDetection');
+      isolate = IsolateUtils();
+      await isolate.start();
+      classifier = Classifier();
+      classifier.loadModel();
     } on PlatformException catch (e) {
       throw BodyDetectionException(e.code, e.message);
     }
   }
 
-  static Future<void> disablePoseDetection() async {
+  Future<void> disablePoseDetection() async {
     try {
       await _channel.invokeMethod<void>('disablePoseDetection');
+
     } on PlatformException catch (e) {
       throw BodyDetectionException(e.code, e.message);
     }
   }
-
-  static Future<void> enableBodyMaskDetection() async {
-    try {
-      await _channel.invokeMethod<void>('enableBodyMaskDetection');
-    } on PlatformException catch (e) {
-      throw BodyDetectionException(e.code, e.message);
-    }
-  }
-
-  static Future<void> disableBodyMaskDetection() async {
-    try {
-      await _channel.invokeMethod<void>('disableBodyMaskDetection');
-    } on PlatformException catch (e) {
-      throw BodyDetectionException(e.code, e.message);
-    }
-  }
-
-  static image_lib.Image convertCameraImage(PngImage pngImage) {
-    final int width = pngImage.width;
-    final int height = pngImage.height;
-  }
-
-  loadModel({Interpreter? interpreter}) async {
-    try {
-      _interpreter = interpreter ??
-          await Interpreter.fromAsset(
-            "model.tflite",
-            options: InterpreterOptions()..threads = 4,
-          );
-    } catch (e) {
-      print("Error while creating interpreter: $e");
-    }
-
-    // var outputTensors = interpreter.getOutputTensors();
-    // var inputTensors = interpreter.getInputTensors();
-    // List<List<int>> _outputShapes = [];
-
-    // outputTensors.forEach((tensor) {
-    //   print("Output Tensor: " + tensor.toString());
-    //   _outputShapes.add(tensor.shape);
-    // });
-    // inputTensors.forEach((tensor) {
-    //   print("Input Tensor: " + tensor.toString());
-    // });
-
-    // print("------------------[A}========================\n" +
-    //     _outputShapes.toString());
-
-    outputLocations = TensorBufferFloat([1, 1, 17, 3]);
-  }
+}
