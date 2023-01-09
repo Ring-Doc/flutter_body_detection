@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
@@ -54,6 +53,7 @@ class BodyDetection {
       classifier.runModel();
 
       List<dynamic> results = classifier.parseLandmarkData();
+      // TODO: results check
       return results;
     } on PlatformException catch (e) {
       throw BodyDetectionException(e.code, e.message);
@@ -91,7 +91,7 @@ class BodyDetection {
     }
   }
 
-  Future<void> stopCameraStream() async {
+  static Future<void> stopCameraStream() async {
     try {
       await _imageStreamSubscription?.cancel();
       _imageStreamSubscription = null;
@@ -112,7 +112,7 @@ class BodyDetection {
     }
   }
 
-  Future<void> disablePoseDetection() async {
+  static Future<void> disablePoseDetection() async {
     try {
       await _channel.invokeMethod<void>('disablePoseDetection');
 
