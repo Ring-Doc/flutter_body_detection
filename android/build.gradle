@@ -53,7 +53,7 @@ dependencies {
     implementation 'com.google.mlkit:pose-detection-accurate:18.0.0-beta3'
 
     // Selfie segmentation
-    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta4'
+    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta3'
 
     implementation 'androidx.camera:camera-core:1.0.1'
     implementation 'androidx.camera:camera-lifecycle:1.0.1'
